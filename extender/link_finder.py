@@ -6,6 +6,8 @@ from java.lang import RuntimeException
 import binascii
 import base64
 import re
+import sys
+from exceptions_fix.py import FixBurpExceptions
 
 class BurpExtender(IBurpExtender, IHttpListener):
     
@@ -15,7 +17,7 @@ class BurpExtender(IBurpExtender, IHttpListener):
     
     def	registerExtenderCallbacks(self, callbacks):
         # set our extension name
-        callbacks.setExtensionName("My extension")
+        callbacks.setExtensionName("JS link finder")
         
         # obtain our output stream
         self.stdout = PrintWriter(callbacks.getStdout(), True)
@@ -33,27 +35,24 @@ class BurpExtender(IBurpExtender, IHttpListener):
     def	processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
         try:
             if messageIsRequest:
-#                 self.stdout.println(self.helpers.analyzeRequest(messageInfo.getRequest()).getUrl())
-                pass
+                self.stdout.println(self.helpers.analyzeRequest(messageInfo).getUrl())
             else:
                 mime_types=['script']
                 mime_type=self.helpers.analyzeResponse(messageInfo.getResponse()).getStatedMimeType()
-                self.stdout.println(mime_type)
-                if mime_type.encode('ascii').lower() in mime_types:
+#                 self.stdout.println(mime_type)
+                if mime_type.lower() in mime_types:
                     encoded_resp=binascii.b2a_base64(messageInfo.getResponse())
-                    decoded_resp=base64.b64decode(encoded_resp).decode('utf-8')
-                    self.stdout.println(type(decoded_resp))
-                    endpoints=self.parser_file(self, decoded_resp.encode('ascii'), self.regex_str)
+                    decoded_resp=base64.b64decode(encoded_resp)
+                    endpoints=self.parser_file(decoded_resp, self.regex_str)
                     for counter, endpoint in enumerate(endpoints):
-                        self.stdout.println(counter,' - ', endpoint['link'])
+                        self.stdout.println(str(counter)+' - ' +endpoint['link'])
         except Exception as e:
-                    self.stdout.println('***** exception ***********')
-                    self.stdout.println(e)
+            self.stdout.println('========== some error occured ==========')
+            self.stdout.println(e)
            
     def	parser_file(self, content, regex_str, mode=1, more_regex=None, no_dup=1):
-        regex = re.compile(re.escape(regex_str), re.VERBOSE)
+        regex = re.compile(regex_str, re.VERBOSE)
         items = [{"link": m.group(1)} for m in re.finditer(regex, content)]
-    
         if no_dup:
             # Remove duplication
             all_links = set()
@@ -73,9 +72,9 @@ class BurpExtender(IBurpExtender, IHttpListener):
                     filtered_items.append(item)
             else:
                 filtered_items.append(item)
-        print(filtered_items)
         return filtered_items
-
+    
+    
     regex_str = r"""
     
       (?:"|')                               # Start newline delimiter
@@ -110,4 +109,3 @@ class BurpExtender(IBurpExtender, IHttpListener):
       (?:"|')                               # End newline delimiter
     
     """                                              
-    

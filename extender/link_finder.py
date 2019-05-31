@@ -6,18 +6,15 @@ from java.lang import RuntimeException
 import binascii
 import base64
 import re
-import sys
-from exceptions_fix.py import FixBurpExceptions
 
 class BurpExtender(IBurpExtender, IHttpListener):
     
     #
     # implement IBurpExtender
     #
-    
     def	registerExtenderCallbacks(self, callbacks):
         # set our extension name
-        callbacks.setExtensionName("JS link finder")
+        callbacks.setExtensionName("JS Link Finder")
         
         # obtain our output stream
         self.stdout = PrintWriter(callbacks.getStdout(), True)
@@ -31,16 +28,17 @@ class BurpExtender(IBurpExtender, IHttpListener):
     #
     # implement IHttpListener
     #
-
     def	processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
+        url=''
         try:
             if messageIsRequest:
-                self.stdout.println(self.helpers.analyzeRequest(messageInfo).getUrl())
+                url=self.helpers.analyzeRequest(messageInfo).getUrl()
             else:
-                mime_types=['script']
                 mime_type=self.helpers.analyzeResponse(messageInfo.getResponse()).getStatedMimeType()
-#                 self.stdout.println(mime_type)
-                if mime_type.lower() in mime_types:
+                
+                if mime_type.lower() == 'script':
+                    self.stdout.println(url)
+                    self.stdout.println(toolFlag)
                     encoded_resp=binascii.b2a_base64(messageInfo.getResponse())
                     decoded_resp=base64.b64decode(encoded_resp)
                     endpoints=self.parser_file(decoded_resp, self.regex_str)
